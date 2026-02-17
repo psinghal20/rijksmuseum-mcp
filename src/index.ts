@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { 
-  ListToolsRequestSchema, 
+import {
+  ListToolsRequestSchema,
   CallToolRequestSchema,
   ListResourcesRequestSchema,
   ReadResourceRequestSchema,
@@ -10,7 +10,6 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
-import { Config } from "./config/Config.js";
 import { RijksmuseumApiClient } from "./api/RijksmuseumApiClient.js";
 import { ToolHandler } from "./handlers/ToolHandler.js";
 import { ResourceHandler } from "./handlers/ResourceHandler.js";
@@ -25,9 +24,8 @@ class RijksmuseumServer {
   private promptHandler: PromptHandler;
 
   constructor() {
-    // Initialize API client with config
-    const config = Config.getInstance();
-    this.apiClient = new RijksmuseumApiClient(config.getApiKey());
+    // Initialize API client (no API key needed for new Linked Art API)
+    this.apiClient = new RijksmuseumApiClient();
 
     // Initialize handlers
     this.toolHandler = new ToolHandler(this.apiClient);
@@ -41,15 +39,8 @@ class RijksmuseumServer {
     }, {
       capabilities: {
         tools: {},
-        resources: {
-          list: true,
-          read: true,
-          subscribe: false
-        },
-        prompts: {
-          list: true,
-          get: true
-        }
+        resources: {},
+        prompts: {}
       }
     });
 
@@ -74,228 +65,100 @@ class RijksmuseumServer {
       tools: [
         {
           name: "search_artwork",
-          description: "Search and filter artworks in the Rijksmuseum collection. This tool provides extensive filtering options including artist name, type of artwork, materials, techniques, time periods, colors, and more. Results can be sorted in various ways and are paginated.",
+          description: "Search and filter artworks in the Rijksmuseum collection using the Linked Art API. Returns enriched results with resolved titles, artists, dates, and image URLs. Note: each search result requires multiple API calls to resolve details, so results may take a moment.",
           inputSchema: {
             type: "object",
             properties: {
-              q: {
+              title: {
                 type: "string",
-                description: "General search query that will match against artist names, artwork titles, descriptions, materials, techniques, etc. Use this for broad searches like 'sunflowers', 'portrait', 'landscape', etc."
+                description: "Search by artwork title. Example: 'Night Watch', 'Milkmaid'."
               },
-              involvedMaker: {
+              objectNumber: {
                 type: "string",
-                description: "Search for artworks by a specific artist. Must be case-sensitive and exact, e.g., 'Rembrandt+van+Rijn', 'Vincent+van+Gogh'. Use + for spaces in names."
+                description: "Search by object number. Example: 'SK-C-5'."
+              },
+              creator: {
+                type: "string",
+                description: "Search by creator/artist name. Example: 'Rembrandt', 'Vermeer'."
+              },
+              creationDate: {
+                type: "string",
+                description: "Search by creation date or date range. Example: '1642', '1600-1700'."
+              },
+              description: {
+                type: "string",
+                description: "Search within artwork descriptions."
               },
               type: {
                 type: "string",
-                description: "Filter by the type of artwork. Common values include 'painting', 'print', 'drawing', 'sculpture', 'photograph', 'furniture'. Use singular form."
-              },
-              material: {
-                type: "string",
-                description: "Filter by the material used in the artwork. Examples: 'canvas', 'paper', 'wood', 'oil paint', 'marble'. Matches exact material names from the museum's classification."
+                description: "Filter by artwork type. Example: 'painting', 'print', 'drawing'."
               },
               technique: {
                 type: "string",
-                description: "Filter by the technique used to create the artwork. Examples: 'oil painting', 'etching', 'watercolor', 'photography'. Matches specific techniques from the museum's classification."
+                description: "Filter by technique. Example: 'oil paint', 'etching'."
               },
-              century: {
-                type: "integer",
-                description: "Filter artworks by the century they were created in. Use negative numbers for BCE, positive for CE. Range from -1 (100-1 BCE) to 21 (2000-2099 CE). Example: 17 for 17th century (1600-1699).",
-                minimum: -1,
-                maximum: 21
-              },
-              color: {
+              material: {
                 type: "string",
-                description: "Filter artworks by predominant color. Use hexadecimal color codes without the # symbol. Examples: 'FF0000' for red, '00FF00' for green, '0000FF' for blue. The API will match artworks containing this color."
+                description: "Filter by material. Example: 'canvas', 'paper', 'panel'."
               },
-              imgonly: {
+              aboutActor: {
+                type: "string",
+                description: "Search for artworks depicting or about a specific person."
+              },
+              imageAvailable: {
                 type: "boolean",
-                description: "When true, only returns artworks that have associated images. Set to true if you need to show or analyze the visual aspects of artworks.",
-                default: false
+                description: "When true, only returns artworks that have digital images available."
               },
-              toppieces: {
-                type: "boolean",
-                description: "When true, only returns artworks designated as masterpieces by the Rijksmuseum. These are the most significant and famous works in the collection.",
-                default: false
-              },
-              sortBy: {
+              pageToken: {
                 type: "string",
-                enum: ["relevance", "objecttype", "chronologic", "achronologic", "artist", "artistdesc"],
-                description: "Determines the order of results. Options: 'relevance' (best matches first), 'objecttype' (grouped by type), 'chronologic' (oldest to newest), 'achronologic' (newest to oldest), 'artist' (artist name A-Z), 'artistdesc' (artist name Z-A).",
-                default: "relevance"
-              },
-              p: {
-                type: "integer",
-                description: "Page number for paginated results, starting at 0. Use in combination with 'ps' to navigate through large result sets. Note: p * ps cannot exceed 10,000.",
-                minimum: 0,
-                default: 0
-              },
-              ps: {
-                type: "integer",
-                description: "Number of artworks to return per page. Higher values return more results but take longer to process. Maximum of 100 items per page.",
-                minimum: 1,
-                maximum: 100,
-                default: 10
-              },
-              culture: {
-                type: "string",
-                enum: ["nl", "en"],
-                description: "Language for the search and returned data. Use 'en' for English or 'nl' for Dutch (Nederlands). Affects artwork titles, descriptions, and other text fields.",
-                default: "en"
+                description: "Token for fetching the next page of results. Obtained from the nextPageToken field of a previous search response."
               }
             }
           }
         },
         {
           name: "get_artwork_details",
-          description: "Retrieve comprehensive details about a specific artwork from the Rijksmuseum collection. Returns extensive information including:\n\n" +
-                      "- Basic details (title, artist, dates)\n" +
-                      "- Physical properties (dimensions, materials, techniques)\n" +
-                      "- Historical context (dating, historical persons, documentation)\n" +
-                      "- Visual information (colors, image data)\n" +
-                      "- Curatorial information (descriptions, labels, location)\n" +
-                      "- Acquisition details\n" +
-                      "- Exhibition history\n\n" +
-                      "This is the primary tool for in-depth research on a specific artwork, providing all available museum documentation and metadata.",
+          description: "Retrieve comprehensive details about a specific artwork from the Rijksmuseum collection via the Linked Art API. Returns titles, artist, dates, description, dimensions, materials, inscriptions, image URL, and web URL.",
           inputSchema: {
             type: "object",
             properties: {
+              id: {
+                type: "string",
+                description: "The Linked Art ID (URL) of the artwork, e.g., 'https://data.rijksmuseum.nl/object/12345'. Can also be a numeric ID."
+              },
               objectNumber: {
                 type: "string",
-                description: "The unique identifier of the artwork in the Rijksmuseum collection. Format is typically a combination of letters and numbers (e.g., 'SK-C-5' for The Night Watch, 'SK-A-3262' for Van Gogh's Self Portrait). Case-sensitive. This ID can be obtained from search results."
-              },
-              culture: {
-                type: "string",
-                enum: ["nl", "en"],
-                description: "Language for the artwork details. Use 'en' for English or 'nl' for Dutch (Nederlands). Affects all textual information including descriptions, titles, and historical documentation.",
-                default: "en"
-              }
-            },
-            required: ["objectNumber"]
-          }
-        },
-        {
-          name: "get_artwork_image",
-          description: "Retrieve detailed image tile information for high-resolution viewing of an artwork. This tool provides data for implementing deep zoom functionality, allowing detailed examination of the artwork at various zoom levels.\n\n" +
-                      "The response includes multiple zoom levels (z0 to z6):\n" +
-                      "- z0: Highest resolution (largest image)\n" +
-                      "- z6: Lowest resolution (smallest image)\n\n" +
-                      "Each zoom level contains:\n" +
-                      "- Total width and height of the image at that level\n" +
-                      "- A set of image tiles that make up the complete image\n" +
-                      "- Position information (x,y) for each tile\n\n" +
-                      "This is particularly useful for:\n" +
-                      "- Implementing deep zoom viewers\n" +
-                      "- Studying fine artwork details\n" +
-                      "- Analyzing brushwork or conservation details\n" +
-                      "- Creating interactive viewing experiences",
-          inputSchema: {
-            type: "object",
-            properties: {
-              objectNumber: {
-                type: "string",
-                description: "The unique identifier of the artwork in the Rijksmuseum collection. Same format as used in get_artwork_details. The artwork must have an associated image for this to work."
-              },
-              culture: {
-                type: "string",
-                enum: ["nl", "en"],
-                description: "Language for the API response. Use 'en' for English or 'nl' for Dutch (Nederlands). While this endpoint primarily returns image data, any textual metadata will be in the specified language.",
-                default: "en"
-              }
-            },
-            required: ["objectNumber"]
-          }
-        },
-        {
-          name: "get_user_sets",
-          description: "Retrieve collections created by Rijksstudio users. These are curated sets of artworks that users have grouped together based on themes, artists, periods, or personal interests.\n\n" +
-                      "Each set includes:\n" +
-                      "- Basic information (name, description, creation date)\n" +
-                      "- Creator details (username, language preference)\n" +
-                      "- Collection statistics (number of items)\n" +
-                      "- Navigation links (API and web URLs)\n\n" +
-                      "This tool is useful for:\n" +
-                      "- Discovering user-curated exhibitions\n" +
-                      "- Finding thematically related artworks\n" +
-                      "- Exploring popular artwork groupings\n" +
-                      "- Studying collection patterns",
-          inputSchema: {
-            type: "object",
-            properties: {
-              page: {
-                type: "number",
-                description: "Page number for paginated results, starting at 0. Use with pageSize to navigate through sets. Note: page * pageSize cannot exceed 10,000.",
-                minimum: 0,
-                default: 0
-              },
-              pageSize: {
-                type: "number",
-                description: "Number of user sets to return per page. Must be between 1 and 100. Larger values return more results but take longer to process.",
-                minimum: 1,
-                maximum: 100,
-                default: 10
-              },
-              culture: {
-                type: "string",
-                enum: ["nl", "en"],
-                description: "Language for the response data. Use 'en' for English or 'nl' for Dutch (Nederlands). Affects set descriptions and user information.",
-                default: "en"
+                description: "The object number of the artwork, e.g., 'SK-C-5'. If provided instead of id, a search will be performed first to find the artwork."
               }
             }
           }
         },
         {
-          name: "get_user_set_details",
-          description: "Retrieve detailed information about a specific user-created collection in Rijksstudio. Returns comprehensive information about the set and its contents, including:\n\n" +
-                      "- Set metadata (name, description, creation date)\n" +
-                      "- Creator information\n" +
-                      "- List of artworks in the set\n" +
-                      "- Image data for each artwork\n" +
-                      "- Navigation links\n\n" +
-                      "This tool is particularly useful for:\n" +
-                      "- Analyzing thematic groupings of artworks\n" +
-                      "- Studying curatorial choices\n" +
-                      "- Understanding collection patterns\n" +
-                      "- Exploring relationships between artworks",
+          name: "get_artwork_image",
+          description: "Retrieve the IIIF image URL for an artwork. Returns a IIIF Image API URL that can be used to access the image at various sizes. The base URL can be modified with IIIF parameters for different sizes (e.g., /full/800,/0/default.jpg for 800px width).",
           inputSchema: {
             type: "object",
             properties: {
-              setId: {
+              id: {
                 type: "string",
-                description: "The unique identifier of the user set to fetch. Format is typically 'userId-setname'. This ID can be obtained from the get_user_sets results."
+                description: "The Linked Art ID (URL) of the artwork."
               },
-              culture: {
+              objectNumber: {
                 type: "string",
-                enum: ["nl", "en"],
-                description: "Language for the response data. Use 'en' for English or 'nl' for Dutch (Nederlands). Affects set descriptions and artwork information.",
-                default: "en"
-              },
-              page: {
-                type: "number",
-                description: "Page number for paginated results, starting at 0. Use with pageSize to navigate through large sets. Note: page * pageSize cannot exceed 10,000.",
-                minimum: 0,
-                default: 0
-              },
-              pageSize: {
-                type: "number",
-                description: "Number of artworks to return per page. Must be between 1 and 100. Default is 25. Larger values return more artworks but take longer to process.",
-                minimum: 1,
-                maximum: 100,
-                default: 25
+                description: "The object number of the artwork, e.g., 'SK-C-5'. If provided instead of id, a search will be performed first."
               }
-            },
-            required: ["setId"]
+            }
           }
         },
         {
           name: "open_image_in_browser",
-          description: "Open a high-resolution image of an artwork in the default web browser for viewing. This tool is useful when you want to examine an artwork visually or show it to the user. Works with any valid Rijksmuseum image URL.",
+          description: "Open a high-resolution image of an artwork in the default web browser for viewing. Works with any valid image URL including IIIF URLs.",
           inputSchema: {
             type: "object",
             properties: {
               imageUrl: {
                 type: "string",
-                description: "The full URL of the artwork image to open. Must be a valid HTTP/HTTPS URL from the Rijksmuseum's servers. These URLs can be obtained from artwork search results or details."
+                description: "The full URL of the artwork image to open. Can be a IIIF URL or any valid HTTP/HTTPS image URL."
               }
             },
             required: ["imageUrl"]
@@ -303,17 +166,17 @@ class RijksmuseumServer {
         },
         {
           name: "get_artist_timeline",
-          description: "Generate a chronological timeline of an artist's works in the Rijksmuseum collection. This tool is perfect for studying an artist's development, analyzing their artistic periods, or understanding their contribution to art history over time.",
+          description: "Generate a chronological timeline of an artist's works in the Rijksmuseum collection. Searches by creator name, resolves artwork details and images, then sorts chronologically.",
           inputSchema: {
             type: "object",
             properties: {
               artist: {
                 type: "string",
-                description: "The name of the artist to create a timeline for. Must match the museum's naming convention (e.g., 'Rembrandt van Rijn', 'Vincent van Gogh'). Case sensitive and exact match required."
+                description: "The name of the artist to create a timeline for. Example: 'Rembrandt van Rijn', 'Vincent van Gogh'."
               },
               maxWorks: {
                 type: "number",
-                description: "Maximum number of works to include in the timeline. Works are selected based on significance and quality of available images. Higher numbers give a more complete picture but may include less significant works.",
+                description: "Maximum number of works to include in the timeline.",
                 minimum: 1,
                 maximum: 50,
                 default: 10
@@ -360,4 +223,4 @@ class RijksmuseumServer {
 const server = new RijksmuseumServer();
 server.run().catch((error) => {
   ErrorHandler.handleError(error);
-}); 
+});

@@ -19,16 +19,14 @@ export class ResourceHandler {
     try {
       switch (uri) {
         case "art://collection/popular":
-          const popularArtworks = await this.apiClient.searchArtworks({
-            ps: 10,
-            sortBy: 'relevance',
-            imgonly: true
+          const response = await this.apiClient.searchArtworks({
+            imageAvailable: true,
           });
           return {
             contents: [{
               uri,
               mimeType: "application/json",
-              text: JSON.stringify(popularArtworks, null, 2)
+              text: JSON.stringify(response.items.slice(0, 10), null, 2)
             }]
           };
 
@@ -39,4 +37,4 @@ export class ResourceHandler {
       ErrorHandler.handleError(error);
     }
   }
-} 
+}

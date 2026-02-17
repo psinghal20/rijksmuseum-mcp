@@ -8,7 +8,7 @@ export class PromptHandler {
       description: "Analyze an artwork's composition, style, and historical context",
       arguments: [{
         name: "artworkId",
-        description: "ID of the artwork to analyze",
+        description: "Linked Art ID (URL) or object number of the artwork to analyze",
         required: true
       }]
     },
@@ -101,4 +101,4 @@ The data for this timeline will be provided by the get_artist_timeline tool. Ple
       `Prompt implementation not found: ${name}`
     );
   }
-} 
+}

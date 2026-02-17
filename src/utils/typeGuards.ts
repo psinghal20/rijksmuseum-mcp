@@ -1,41 +1,30 @@
-import { SearchArtworkArguments, OpenImageArguments, GetUserSetDetailsArguments } from '../types.js';
+import { SearchArtworkArguments, OpenImageArguments } from '../types.js';
 
 export function isSearchArtworkArguments(args: unknown): args is SearchArtworkArguments {
   if (!args || typeof args !== 'object') return false;
-  const params = args as any;
+  const params = args as Record<string, unknown>;
 
   // Check types of optional parameters if they exist
-  if (params.q !== undefined && typeof params.q !== 'string') return false;
-  if (params.involvedMaker !== undefined && typeof params.involvedMaker !== 'string') return false;
+  if (params.title !== undefined && typeof params.title !== 'string') return false;
+  if (params.objectNumber !== undefined && typeof params.objectNumber !== 'string') return false;
+  if (params.creator !== undefined && typeof params.creator !== 'string') return false;
+  if (params.creationDate !== undefined && typeof params.creationDate !== 'string') return false;
+  if (params.description !== undefined && typeof params.description !== 'string') return false;
   if (params.type !== undefined && typeof params.type !== 'string') return false;
-  if (params.material !== undefined && typeof params.material !== 'string') return false;
   if (params.technique !== undefined && typeof params.technique !== 'string') return false;
-  if (params.century !== undefined && typeof params.century !== 'number') return false;
-  if (params.color !== undefined && typeof params.color !== 'string') return false;
-  if (params.imgonly !== undefined && typeof params.imgonly !== 'boolean') return false;
-  if (params.toppieces !== undefined && typeof params.toppieces !== 'boolean') return false;
-  if (params.p !== undefined && typeof params.p !== 'number') return false;
-  if (params.ps !== undefined && typeof params.ps !== 'number') return false;
-  if (params.culture !== undefined && !['nl', 'en'].includes(params.culture)) return false;
-  if (params.sortBy !== undefined && !['relevance', 'objecttype', 'chronologic', 'achronologic', 'artist', 'artistdesc'].includes(params.sortBy)) return false;
+  if (params.material !== undefined && typeof params.material !== 'string') return false;
+  if (params.aboutActor !== undefined && typeof params.aboutActor !== 'string') return false;
+  if (params.imageAvailable !== undefined && typeof params.imageAvailable !== 'boolean') return false;
+  if (params.pageToken !== undefined && typeof params.pageToken !== 'string') return false;
 
   // At least one search parameter should be provided
-  return !!(params.q || params.involvedMaker || params.type || params.material || 
-           params.technique || params.century || params.color);
+  return !!(params.title || params.objectNumber || params.creator || params.creationDate ||
+            params.description || params.type || params.technique || params.material ||
+            params.aboutActor || params.imageAvailable !== undefined);
 }
 
 export function isOpenImageArguments(args: unknown): args is OpenImageArguments {
   if (!args || typeof args !== 'object') return false;
-  const { imageUrl } = args as any;
+  const { imageUrl } = args as Record<string, unknown>;
   return typeof imageUrl === 'string' && imageUrl.startsWith('http');
 }
-
-export function isGetUserSetDetailsArguments(args: unknown): args is GetUserSetDetailsArguments {
-  if (!args || typeof args !== 'object') return false;
-  const params = args as any;
-  if (typeof params.setId !== 'string') return false;
-  if (params.culture !== undefined && !['nl', 'en'].includes(params.culture)) return false;
-  if (params.page !== undefined && typeof params.page !== 'number') return false;
-  if (params.pageSize !== undefined && typeof params.pageSize !== 'number') return false;
-  return true;
-} 
