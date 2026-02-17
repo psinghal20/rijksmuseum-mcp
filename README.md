@@ -4,53 +4,53 @@
 
 A Model Context Protocol (MCP) server that provides access to the Rijksmuseum's collection through natural language interactions. This server enables AI models to explore, analyze, and interact with artworks and collections from the Rijksmuseum.
 
+Uses the Rijksmuseum's [Linked Art API](https://data.rijksmuseum.nl) — no API key required.
+
 <a href="https://glama.ai/mcp/servers/4rmiexp64y"><img width="380" height="200" src="https://glama.ai/mcp/servers/4rmiexp64y/badge" alt="Rijksmuseum Server MCP server" /></a>
 
 ## Features
 
-The server provides several tools for interacting with the Rijksmuseum's collection:
+The server provides 5 tools for interacting with the Rijksmuseum's collection:
 
 ### 1. Search Artworks (`search_artwork`)
 Search and filter artworks using various criteria including:
-- Text-based search
-- Artist name
-- Artwork type
+- Title, description, and object number
+- Creator/artist name
+- Artwork type (painting, print, drawing, etc.)
 - Materials and techniques
-- Time periods
-- Colors
-- And more
+- Creation date or date range
+- Depicted persons (`aboutActor`)
+- Image availability filter
+- Token-based pagination for large result sets
+
+Results are enriched with resolved titles, artists, dates, and IIIF image URLs.
 
 ### 2. Artwork Details (`get_artwork_details`)
 Retrieve comprehensive information about specific artworks, including:
-- Basic details (title, artist, dates)
-- Physical properties
-- Historical context
-- Visual information
-- Curatorial information
-- Exhibition history
+- Titles in multiple languages (Dutch and English)
+- Artist attribution
+- Creation dates (display string + ISO begin/end)
+- Full-text description
+- Physical dimensions (height, width, weight)
+- Materials and inscriptions
+- IIIF image URL and web URL
 
-### 3. High-Resolution Images (`get_artwork_image`)
-Access high-resolution image data with deep zoom capabilities:
-- Multiple zoom levels
-- Tile-based image loading
-- Full resolution support
-- Position information
+Accepts a Linked Art ID or object number (e.g., `SK-C-5`).
 
-### 4. User Collections (`get_user_sets` & `get_user_set_details`)
-Explore user-created collections:
-- Browse curated sets
-- View thematic groupings
-- Analyze collection patterns
-- Access detailed set information
+### 3. Artwork Image (`get_artwork_image`)
+Get the IIIF Image API URL for an artwork:
+- Full resolution image URL
+- Base IIIF URL with example size variants (max, 800px, 400px, thumbnail)
+- Compatible with any IIIF image viewer
 
-### 5. Image Viewing (`open_image_in_browser`)
+### 4. Image Viewing (`open_image_in_browser`)
 Open artwork images directly in your browser for detailed viewing.
 
-### 6. Artist Timeline (`get_artist_timeline`)
+### 5. Artist Timeline (`get_artist_timeline`)
 Generate chronological timelines of artists' works:
 - Track artistic development
 - Analyze periods and styles
-- Study career progression
+- Sorted chronologically with images
 
 ## Example Use Cases
 
@@ -58,55 +58,35 @@ Here are some example queries you can ask the AI when using this server:
 
 ### Artwork Discovery
 ```
-"Show me all paintings by Rembrandt from the 1640s"
-"Find artworks that prominently feature the color blue"
-"What are the most famous masterpieces in the collection?"
-"Search for still life paintings from the Dutch Golden Age"
+"Show me all paintings by Rembrandt"
+"Find artworks depicting biblical scenes"
+"Search for drawings made with etching technique"
+"What paintings on canvas are in the collection?"
 ```
 
 ### Artwork Analysis
 ```
 "Tell me everything about The Night Watch"
 "What are the dimensions and materials used in Van Gogh's Self Portrait?"
-"Show me high-resolution details of the brushwork in Vermeer's The Milkmaid"
-"Compare the colors used in different versions of The Potato Eaters"
+"Show me the high-resolution image of Vermeer's The Milkmaid"
+"What inscriptions are on the Night Watch?"
 ```
 
 ### Artist Research
 ```
-"Create a timeline of Rembrandt's self-portraits"
-"How did Van Gogh's use of color evolve throughout his career?"
-"Show me all works by Frans Hals in chronological order"
+"Create a timeline of Rembrandt's works"
+"Show me all works by Frans Hals"
 "What techniques did Jan Steen use in his paintings?"
 ```
 
-### Thematic Exploration
+### Visual Exploration
 ```
-"Find all artworks depicting biblical scenes"
-"Show me paintings of Amsterdam in the 17th century"
-"What artworks feature flowers or still life arrangements?"
-"Find portraits that include musical instruments"
-```
-
-### Collection Analysis
-```
-"Show me the most popular user-curated collections"
-"Find sets that focus on landscape paintings"
-"What are the recent additions to the museum's collection?"
-"Show me collections featuring works from multiple artists"
-```
-
-### Visual Details
-```
-"Let me examine the details in the background of The Night Watch"
-"Show me a close-up of the jewelry in Girl with a Pearl Earring"
-"Can you display the highest resolution version of The Jewish Bride?"
-"I want to study the facial expressions in The Syndics"
+"Open the Night Watch image in my browser"
+"Get the IIIF image URL for SK-C-5 so I can view it at different sizes"
+"Show me a thumbnail of The Syndics"
 ```
 
 ## Getting Started
-
-You can install this server in two ways:
 
 ### 1. Using Claude Desktop with NPM Package
 Update your Claude configuration file (`~/Library/Application Support/Claude/claude_desktop_config.json`):
@@ -119,15 +99,13 @@ Update your Claude configuration file (`~/Library/Application Support/Claude/cla
       "args": [
         "-y",
         "mcp-server-rijksmuseum"
-      ],
-      "env": {
-        "RIJKSMUSEUM_API_KEY": "your_api_key_here"
-      }
+      ]
     }
   }
 }
 ```
-You can get an API key from the [Rijksmuseum API Portal](https://data.rijksmuseum.nl/docs/api/).
+
+No API key is required.
 
 ### 2. From Source
 1. Clone this repository
@@ -135,48 +113,39 @@ You can get an API key from the [Rijksmuseum API Portal](https://data.rijksmuseu
    ```bash
    npm install
    ```
-3. Copy the example environment file:
+3. Build:
    ```bash
-   cp .env.example .env
+   npm run build
    ```
-4. Add your Rijksmuseum API key to the `.env` file:
-   ```
-   RIJKSMUSEUM_API_KEY=your_api_key_here
-   ```
-5. Then update your Claude configuration file:
+4. Update your Claude configuration file:
    ```json
    {
      "mcpServers": {
        "rijksmuseum-server": {
          "command": "node",
          "args": [
-           "/path/to/rijksmuseum-server/build/index.js"
-         ],
-         "env": {
-           "RIJKSMUSEUM_API_KEY": "your_api_key_here"
-         }
+           "/path/to/rijksmuseum-mcp/dist/index.js"
+         ]
        }
      }
    }
    ```
 
-Make sure to:
-- Replace `/path/to/rijksmuseum-server` with the actual path to your installation
-- Add your Rijksmuseum API key in the `env` section
+Replace `/path/to/rijksmuseum-mcp` with the actual path to your installation.
 
 After updating the configuration, restart Claude Desktop for the changes to take effect.
 
-## Configuration
+## API
 
-The server can be configured through environment variables:
-- `RIJKSMUSEUM_API_KEY`: Your Rijksmuseum API key (required)
-- `PORT`: Server port (default: 3000)
-- `LOG_LEVEL`: Logging level (default: 'info')
+This server uses the Rijksmuseum Linked Art API at `https://data.rijksmuseum.nl`. The API returns [Linked Art](https://linked.art/) JSON-LD data, which the server parses and presents in a simplified format.
 
-## API Documentation
+Key implementation details:
+- **No API key required** — the Linked Art API is open
+- **Multi-hop image resolution** — resolving an image requires 3 HTTP calls (Object → VisualItem → DigitalObject → IIIF URL)
+- **Parallel resolution** — search results are resolved concurrently (up to 10 at a time) to mitigate the multi-hop overhead
+- **IIIF Image API** — all image URLs use the [IIIF Image API](https://iiif.io/api/image/3.0/) standard
 
-For detailed information about the Rijksmuseum API endpoints used by this server, visit:
-[Rijksmuseum API Documentation](https://data.rijksmuseum.nl/object-metadata/api/)
+For more information about the Rijksmuseum's data, visit the [Rijksmuseum Data Portal](https://data.rijksmuseum.nl).
 
 ## Contributing
 
